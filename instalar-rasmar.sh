@@ -18,6 +18,9 @@
 # ============================================================================
 
 set -e  # para tudo se algum passo der errado, em vez de continuar quebrado
+set -o pipefail  # sem isso, um "curl ... | bash -" com o curl falhando passava
+                 # despercebido (só o bash do fim do cano contava) — exatamente
+                 # o tipo de falha silenciosa que já pegou gente nessa instalação
 
 URL_SERVER_JS="$1"
 
@@ -73,7 +76,12 @@ else
   echo "📦 Instalando o Caddy (é o que deixa o endereço com cadeado https, de graça)..."
   sudo apt-get update -y >/dev/null 2>&1
   sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl >/dev/null 2>&1
-  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg >/dev/null 2>&1
+  # --yes --batch: nunca pergunta "sobrescrever?" — numa máquina que já
+  # passou por uma tentativa de instalação anterior (interrompida, por
+  # exemplo), esse arquivo de chave pode já existir; sem esses dois
+  # parâmetros, o gpg para esperando uma resposta (y/N) que nunca vem
+  # quando o script roda sem ninguém olhando, e trava tudo no meio.
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --yes --batch --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg >/dev/null 2>&1
   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
   sudo apt-get update -y >/dev/null 2>&1
   sudo apt-get install -y caddy >/dev/null 2>&1
